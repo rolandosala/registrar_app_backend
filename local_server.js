@@ -10,10 +10,10 @@ app.use(cors());
 app.use(express.json());
 
 const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    host: /* process.env.DB_HOST */ 'localhost',
+    user: /* process.env.DB_USERNAME */ 'root',
+    password: /* process.env.DB_PASSWORD */ '',
+    database: /* process.env.DB_NAME */'studentrecord_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -142,6 +142,17 @@ app.get(`/fetchStudentSemestersEnrolled`, async (req, res) => {
     }
 })
 
+app.get(`/fetchStudentSemestralRatingRecords`, async (req, res) => {
+    try {
+        const { id } = req.query
+        const [rows] = await db.query(`
+            SELECT * FROM subjectstaken_tbl WHERE studentid = ? ORDER BY academicyear ASC`, [id])
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
+
 app.get('/fetchCoursesRecord', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -231,6 +242,6 @@ app.put('/updateRequestToMailed', async (req, res) => {
     }
 })
 
-app.listen(process.env.DB_PORT, () => {
-    console.log(`Server is running on localhost:${process.env.DB_PORT}`)
+app.listen(/* process.env.DB_PORT */3002, () => {
+    console.log(`Server is running on localhost:${/* process.env.DB_PORT */3002}`)
 })
