@@ -10,14 +10,15 @@ app.use(cors());
 app.use(express.json());
 
 const db = mysql.createPool({
-    host: /* process.env.DB_HOST */ 'localhost',
-    user: /* process.env.DB_USERNAME */ 'root',
-    password: /* process.env.DB_PASSWORD */ '',
-    database: /* process.env.DB_NAME */'studentrecord_db',
+    host: process.env.DB_HOST /* 'localhost' */,
+    user: process.env.DB_USERNAME /* 'root' */,
+    password: process.env.DB_PASSWORD /* '' */,
+    database: process.env.DB_NAME/* 'studentrecord_db' */,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 })
+
 
 // GET OR FETCH API FUNCTION
 
@@ -174,7 +175,35 @@ app.get('/fetchMajorsRecord', async (req, res) => {
         res.status(500).json({ message: 'Error Fetching Courses Record', error: error.message })
     }
 })
-//01-10106
+
+function countOccurrences(array, key) {
+    const counts = {}
+    array.forEach(row => {
+        const raw = row[key] ?? ''
+        const items = raw.split(',').map(item => item.trim()).filter(Boolean)
+        items.forEach(item => {
+            counts[item] = (counts[item] || 0) + 1
+        })
+    })
+    return counts
+}
+app.get('/fetchRequestReportsByTransaction', async (req, res) => {
+    try {
+        const { startdate, enddate, status } = req.query
+        const [rows] = await db.query(`SELECT requests, purpose 
+            FROM request_tbl 
+            WHERE date_requested BETWEEN ? AND ? AND status = ?;`, [startdate, enddate, status ])
+        const requestCounts = countOccurrences(rows, 'requests')
+        const purposeCounts = countOccurrences(rows, 'purpose')
+        res.json({
+            requestCounts: Object.entries(requestCounts).map(([name, count]) => ({ name, count })),
+            purposeCounts: Object.entries(purposeCounts).map(([name, count]) => ({ name, count }))
+        })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Fetching Request Reports by Transaction', error: error.message })
+    }
+})
 
 // POST OR CREATE API FUNCTIONS
 app.post('/createNewRequest', async (req, res) => {
@@ -182,14 +211,13 @@ app.post('/createNewRequest', async (req, res) => {
         const { request_date, fullname, course, major, contact, email, requests, purpose, status } = req.body
         const requestsStr = Array.isArray(requests) ? requests.join(', ') : requests;
         const purposeStr = Array.isArray(purpose) ? purpose.join(', ') : purpose;
-        const [rows] = await db.query(`INSERT INTO request_tbl (date_requested, name, course, major, contact, email, requests, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`, [request_date, fullname, contact, email, course, major, requestsStr, purposeStr, status])
+        const [rows] = await db.query(`INSERT INTO request_tbl (date_requested, name, course, major, contact, email, requests, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`, [request_date, fullname, course, major, contact, email, requestsStr, purposeStr, status])
         res.json({ message: 'Request Saved' })
     } catch (error) {
         console.log(error)
         res.status(500).json({ message: 'Error Creating Request: ', error: error.message })
     }
 })
-
 
 // PUT OR UPDATE API FUNCTIONS
 app.put('/updateRequestToPaid', async (req, res) => {
@@ -230,18 +258,41 @@ app.put('/updateRequestToFiledOrMailing', async (req, res) => {
 })
 app.put('/updateRequestToMailed', async (req, res) => {
     try {
-        const { status, datefiled, id } = req.body
+        const { status, datemailed, receiver, id } = req.body
         const [rows] = await db.query(`
-            UPDATE request_tbl 
-            SET status = ?, date_filed = ? 
-            WHERE request_tbl.id = ?;`, [status, datefiled, id])
-        res.json({ message: 'Request Updated to Filed' })
+           UPDATE request_tbl SET status = ?, date_mailed = ?, receiver = ?
+           WHERE request_tbl.id = ?`, [status, datemailed, receiver, id])
+        res.json(rows)
     } catch (error) {
         console.log(error)
-        res.status(500).json({ message: 'Error on Updating Request to Mailing: ', error: error.message })
+        res.status(500).json({ message: 'Error on Updating Request to Mailed: ', error: error.message })
+    }
+})
+app.put('/updateRequestNotice', async (req, res) => {
+    try {
+        const { notes, id } = req.body
+        const [rows] = await db.query(`
+           UPDATE request_tbl SET notes = ?
+           WHERE request_tbl.id = ?`, [notes, id])
+        res.json({ message: 'Notice Added' })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error on Updating Request Notes: ', error: error.message })
     }
 })
 
-app.listen(/* process.env.DB_PORT */3002, () => {
-    console.log(`Server is running on localhost:${/* process.env.DB_PORT */3002}`)
+//DELETE FUNCTIONS
+app.delete('/deletePendingRequest', async (req, res) => {
+    try {
+        const { id } = req.query
+        const [rows] = await db.query(`
+            DELETE FROM request_tbl WHERE id = ? `, [id])
+        res.json({ message: 'Request Deleted' })
+    } catch (error) {
+        console.log(error)
+    }
+})
+
+app.listen(process.env.DB_PORT/* 3002 */, () => {
+    console.log(`Server is running on localhost:${process.env.DB_PORT/* 3002 */}`)
 })
