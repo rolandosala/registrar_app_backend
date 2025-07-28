@@ -192,7 +192,7 @@ app.get('/fetchRequestReportsByTransaction', async (req, res) => {
         const { startdate, enddate, status } = req.query
         const [rows] = await db.query(`SELECT requests, purpose 
             FROM request_tbl 
-            WHERE date_requested BETWEEN ? AND ? AND status = ?;`, [startdate, enddate, status ])
+            WHERE date_requested BETWEEN ? AND ? AND status = ?;`, [startdate, enddate, status])
         const requestCounts = countOccurrences(rows, 'requests')
         const purposeCounts = countOccurrences(rows, 'purpose')
         res.json({
@@ -278,6 +278,31 @@ app.put('/updateRequestNotice', async (req, res) => {
     } catch (error) {
         console.log(error)
         res.status(500).json({ message: 'Error on Updating Request Notes: ', error: error.message })
+    }
+})
+app.put('/updateAdmissionRecord', async (req, res) => {
+    try {
+        const { admission_date, entrance_credentials, course, major, studentid } = req.body
+        const [rows] = await db.query(`
+            UPDATE admission_tbl 
+            SET admission_date = ?, entrance_credential = ?, course = ?, major = ?
+            WHERE student_id = ?;`, [admission_date, entrance_credentials, course, major, studentid])
+        res.json({ message: 'Admission Record Updated' })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
+    }
+})
+app.put('/updatePersonalBackgroundRecord', async (req, res) => {
+    try {
+        const { lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid } = req.body
+        console.log(lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid)
+        const [rows] = await db.query(`
+            UPDATE personalbackground_tbl SET lastname = ?,firstname = ?, middlename = ?, birthdate = ?, birthplace = ?, sex = ?, citizenship = ?, religion = ?, parentguardian = ?, permanentaddress = ? WHERE personalbackground_tbl.studentid = ?;`, [lastname, firstname, middlename, birthdate, birthplace,  gender, citizenship, religion, parent, address, studentid])
+        res.json({ message: 'Personal Background Record Updated' })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
     }
 })
 
