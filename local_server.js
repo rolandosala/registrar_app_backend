@@ -205,6 +205,18 @@ app.get('/fetchRequestReportsByTransaction', async (req, res) => {
     }
 })
 
+app.get('/fetchTORTransactions', async (req, res) => {
+    try {
+        const { id } = req.query
+        const [rows] = await db.query(`
+           SELECT dateissued,remarks,ornumber,docstamp FROM tortransactions_tbl WHERE studentid = ?;`, [id])
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Fetching Courses Record', error: error.message })
+    }
+})
+
 // POST OR CREATE API FUNCTIONS
 app.post('/createNewRequest', async (req, res) => {
     try {
@@ -296,10 +308,44 @@ app.put('/updateAdmissionRecord', async (req, res) => {
 app.put('/updatePersonalBackgroundRecord', async (req, res) => {
     try {
         const { lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid } = req.body
-        console.log(lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid)
         const [rows] = await db.query(`
-            UPDATE personalbackground_tbl SET lastname = ?,firstname = ?, middlename = ?, birthdate = ?, birthplace = ?, sex = ?, citizenship = ?, religion = ?, parentguardian = ?, permanentaddress = ? WHERE personalbackground_tbl.studentid = ?;`, [lastname, firstname, middlename, birthdate, birthplace,  gender, citizenship, religion, parent, address, studentid])
+            UPDATE personalbackground_tbl SET lastname = ?,firstname = ?, middlename = ?, birthdate = ?, birthplace = ?, sex = ?, citizenship = ?, religion = ?, parentguardian = ?, permanentaddress = ? WHERE personalbackground_tbl.studentid = ?;`, [lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid])
         res.json({ message: 'Personal Background Record Updated' })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
+    }
+})
+app.put('/updateEducationalBackground', async (req, res) => {
+    try {
+        const { elementaryschoolname, elementaryschooladdress, elementaryyeargraduated,
+            secondaryschoolname, secondaryschooladdress, secondaryyeargraduated,
+            tertiaryschoolname, tertiaryschooladdress, tertiaryyeargraduated, studentid
+        } = req.body
+        const [rows] = await db.query(`
+            UPDATE educationalbackground_tbl SET 
+            elementaryschool = ?, elementaryaddress = ?, elementaryyeargraduated = ?, 
+            secondaryschool = ?, secondaryaddress = ?, secondaryyeargraduated = ?, 
+            tertiaryschool = ?, tertiaryaddress = ?, tertiaryyeargraduated = ? 
+            WHERE educationalbackground_tbl.studentid = ?;`, [
+            elementaryschoolname, elementaryschooladdress, elementaryyeargraduated,
+            secondaryschoolname, secondaryschooladdress, secondaryyeargraduated,
+            tertiaryschoolname, tertiaryschooladdress, tertiaryyeargraduated, studentid])
+        res.json({ message: 'Educational Background Record Updated' })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
+    }
+})
+app.put('/updateSemestralRating', async (req, res) => {
+    try {
+        const { courseno, title, grade, reex, credit, id } = req.body
+        console.log(courseno, title, grade, reex, credit, id)
+        const [rows] = await db.query(`
+            UPDATE subjectstaken_tbl SET 
+            coursenumber = ?, descriptivetitle = ?, finalgrade = ?, reex = ?, credit = ? 
+            WHERE subjectstaken_tbl.id = ?;`, [courseno, title, grade, reex, credit, id])
+        res.json({ message: 'Record Updated' })
     } catch (error) {
         console.log(error)
         res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
