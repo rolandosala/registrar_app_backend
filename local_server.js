@@ -2,12 +2,17 @@ import express from 'express'
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise'
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import csv from 'csv-parser';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 
 const db = mysql.createPool({
     host: process.env.DB_HOST /* 'localhost' */,
@@ -18,7 +23,13 @@ const db = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 })
-
+const storage = multer.diskStorage({
+    destination: "./uploads",
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + "-" + file.originalname);
+    },
+});
+const upload = multer({ storage });
 
 // GET OR FETCH API FUNCTION
 
@@ -122,6 +133,7 @@ app.get(`/fetchStudentDetailedInformation`, async (req, res) => {
             FROM personalbackground_tbl 
             JOIN admission_tbl ON personalbackground_tbl.studentid = admission_tbl.student_id 
             JOIN educationalbackground_tbl ON admission_tbl.student_id = educationalbackground_tbl.studentid 
+            JOIN otherinformation_tbl ON educationalbackground_tbl.studentid = otherinformation_tbl.studentid 
             WHERE personalbackground_tbl.studentid = ?;`, [id])
         res.json(rows);
     } catch (error) {
@@ -230,12 +242,73 @@ app.post('/createNewRequest', async (req, res) => {
         res.status(500).json({ message: 'Error Creating Request: ', error: error.message })
     }
 })
+app.post('/createNewStudentRecord', async (req, res) => {
+    const { student_id, admission_date, entrance_credential, course, major, lastname, firstname, middlename, birthdate, birthplace, sex, citizenship, religion, parentguardian, permanentaddress, elementaryschool, elementaryaddress, elementaryyeargraduated, secondaryschool, secondaryaddress, secondaryyeargraduated, tertiaryschool, tertiaryaddress, tertiaryyeargraduated, nstpserialnumber, boardresolution, notes, yeargraduated } = req.body
+    const db_connection = await db.getConnection()
+    try {
+        const admission_data = [student_id, admission_date, entrance_credential, course, major]
+        const personal_data = [student_id, lastname, firstname, middlename, birthdate, birthplace, sex, citizenship, religion, parentguardian, permanentaddress]
+        const education_data = [student_id, elementaryschool, elementaryaddress, elementaryyeargraduated, secondaryschool, secondaryaddress, secondaryyeargraduated, tertiaryschool, tertiaryaddress, tertiaryyeargraduated]
+        const misc_data = [student_id, nstpserialnumber, boardresolution, notes, yeargraduated]
+
+        await db_connection.beginTransaction()
+        await db_connection.query(`
+            INSERT INTO admission_tbl (student_id, admission_date, entrance_credential, course, major) 
+            VALUES (?, ?, ?, ?, ?);`, admission_data)
+        await db_connection.query(`
+            INSERT INTO personalbackground_tbl (studentid, lastname, firstname, middlename, birthdate, birthplace, sex, citizenship, religion, parentguardian, permanentaddress) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, personal_data)
+        await db_connection.query(`
+            INSERT INTO 
+            educationalbackground_tbl (studentid, elementaryschool, elementaryaddress, elementaryyeargraduated, secondaryschool, secondaryaddress, secondaryyeargraduated, tertiaryschool, tertiaryaddress, tertiaryyeargraduated) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, education_data)
+        await db_connection.query(`
+            INSERT INTO 
+            otherinformation_tbl (studentid, nstpserialnumber, boardresolution, notes, yeargraduated) 
+            VALUES (?, ?, ?, ?, ?);`, misc_data)
+        await db_connection.commit()
+        res.json({ message: 'Student Record Created' })
+    } catch (error) {
+        await db_connection.rollback()
+        res.status(500).json({ message: 'Error Creating Request: ', error: error.message })
+    } finally {
+        db_connection.release()
+    }
+})
+app.post("/uploadSemetralRatings", upload.single("csvFile"), (req, res) => {
+    try {
+        const filePath = req.file.path;
+        const id = req.body.id;
+        const results = [];
+
+        fs.createReadStream(filePath)
+            .pipe(csv())
+            .on('data', (data) => results.push(data))
+            .on('end', () => {
+                const keys = Object.keys(results[0]); // Get column names
+                const placeholders = keys.map(() => '?').join(',');
+
+                const insertQuery = `INSERT INTO subjectstaken_tbl (${keys.join(',')}) VALUES (${placeholders})`;
+
+                results.forEach((row) => {
+                    const values = keys.map((key) => row[key]);
+                    db.query(insertQuery, values, (err) => {
+                        if (err) console.error('Insert error:', err);
+                    });
+                });
+
+                res.send('CSV uploaded and data inserted!');
+            });
+    } catch (error) {
+        console.error('Error uploading CSV:', error);
+        res.status(500).send('Error uploading CSV');}
+});
 
 // PUT OR UPDATE API FUNCTIONS
 app.put('/updateRequestToPaid', async (req, res) => {
     try {
         const { status, ornumber, ordate, docstamp, docstampdate, id } = req.body
-        const [rows] = await db.query(`UPDATE request_tbl SET status = ?, or_number = ?, or_date = ?, docstamp = ?, docstamp_date = ? WHERE request_tbl.id = ?;`, [status, ornumber, ordate, docstamp, docstampdate, id])
+        const [rows] = await db.query(`UPDATE request_tbl SET status = ?, or_number = ?, or_date = ?, docstamp = ?, docstamp_date = ? WHERE request_tbl.id = ?; `, [status, ornumber, ordate, docstamp, docstampdate, id])
         res.json({ message: 'Request Paid' })
     } catch (error) {
         console.log(error)
@@ -247,8 +320,8 @@ app.put('/updateRequestToReleased', async (req, res) => {
         const { status, datereleased, receiver, receivername, documentpresented, id } = req.body
         const [rows] = await db.query(`
             UPDATE request_tbl 
-            SET status = ?, date_released = ?, receiver = ?, receiver_name = ?, document_presented = ? 
-            WHERE request_tbl.id = ?;`, [status, datereleased, receiver, receivername, documentpresented, id])
+            SET status = ?, date_released = ?, receiver = ?, receiver_name = ?, document_presented = ?
+            WHERE request_tbl.id = ?; `, [status, datereleased, receiver, receivername, documentpresented, id])
         res.json({ message: 'Request Released' })
     } catch (error) {
         console.log(error)
@@ -260,8 +333,8 @@ app.put('/updateRequestToFiledOrMailing', async (req, res) => {
         const { status, datefiled, id } = req.body
         const [rows] = await db.query(`
             UPDATE request_tbl 
-            SET status = ?, date_filed = ? 
-            WHERE request_tbl.id = ?;`, [status, datefiled, id])
+            SET status = ?, date_filed = ?
+            WHERE request_tbl.id = ?; `, [status, datefiled, id])
         res.json({ message: 'Request Updated to Filed' })
     } catch (error) {
         console.log(error)
@@ -273,7 +346,7 @@ app.put('/updateRequestToMailed', async (req, res) => {
         const { status, datemailed, receiver, id } = req.body
         const [rows] = await db.query(`
            UPDATE request_tbl SET status = ?, date_mailed = ?, receiver = ?
-           WHERE request_tbl.id = ?`, [status, datemailed, receiver, id])
+            WHERE request_tbl.id = ? `, [status, datemailed, receiver, id])
         res.json(rows)
     } catch (error) {
         console.log(error)
@@ -285,7 +358,7 @@ app.put('/updateRequestNotice', async (req, res) => {
         const { notes, id } = req.body
         const [rows] = await db.query(`
            UPDATE request_tbl SET notes = ?
-           WHERE request_tbl.id = ?`, [notes, id])
+            WHERE request_tbl.id = ? `, [notes, id])
         res.json({ message: 'Notice Added' })
     } catch (error) {
         console.log(error)
@@ -298,7 +371,7 @@ app.put('/updateAdmissionRecord', async (req, res) => {
         const [rows] = await db.query(`
             UPDATE admission_tbl 
             SET admission_date = ?, entrance_credential = ?, course = ?, major = ?
-            WHERE student_id = ?;`, [admission_date, entrance_credentials, course, major, studentid])
+            WHERE student_id = ?; `, [admission_date, entrance_credentials, course, major, studentid])
         res.json({ message: 'Admission Record Updated' })
     } catch (error) {
         console.log(error)
@@ -309,7 +382,7 @@ app.put('/updatePersonalBackgroundRecord', async (req, res) => {
     try {
         const { lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid } = req.body
         const [rows] = await db.query(`
-            UPDATE personalbackground_tbl SET lastname = ?,firstname = ?, middlename = ?, birthdate = ?, birthplace = ?, sex = ?, citizenship = ?, religion = ?, parentguardian = ?, permanentaddress = ? WHERE personalbackground_tbl.studentid = ?;`, [lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid])
+            UPDATE personalbackground_tbl SET lastname = ?, firstname = ?, middlename = ?, birthdate = ?, birthplace = ?, sex = ?, citizenship = ?, religion = ?, parentguardian = ?, permanentaddress = ? WHERE personalbackground_tbl.studentid = ?; `, [lastname, firstname, middlename, birthdate, birthplace, gender, citizenship, religion, parent, address, studentid])
         res.json({ message: 'Personal Background Record Updated' })
     } catch (error) {
         console.log(error)
@@ -323,18 +396,29 @@ app.put('/updateEducationalBackground', async (req, res) => {
             tertiaryschoolname, tertiaryschooladdress, tertiaryyeargraduated, studentid
         } = req.body
         const [rows] = await db.query(`
-            UPDATE educationalbackground_tbl SET 
-            elementaryschool = ?, elementaryaddress = ?, elementaryyeargraduated = ?, 
-            secondaryschool = ?, secondaryaddress = ?, secondaryyeargraduated = ?, 
-            tertiaryschool = ?, tertiaryaddress = ?, tertiaryyeargraduated = ? 
-            WHERE educationalbackground_tbl.studentid = ?;`, [
+            UPDATE educationalbackground_tbl SET
+        elementaryschool = ?, elementaryaddress = ?, elementaryyeargraduated = ?,
+            secondaryschool = ?, secondaryaddress = ?, secondaryyeargraduated = ?,
+            tertiaryschool = ?, tertiaryaddress = ?, tertiaryyeargraduated = ?
+                WHERE educationalbackground_tbl.studentid = ?; `, [
             elementaryschoolname, elementaryschooladdress, elementaryyeargraduated,
             secondaryschoolname, secondaryschooladdress, secondaryyeargraduated,
             tertiaryschoolname, tertiaryschooladdress, tertiaryyeargraduated, studentid])
         res.json({ message: 'Educational Background Record Updated' })
     } catch (error) {
         console.log(error)
-        res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
+        res.status(500).json({ message: 'Error Updating Educational Background Record: ', error: error.message })
+    }
+})
+app.put('/updateOtherInformation', async (req, res) => {
+    try {
+        const { nstpserialnumber, boardresolution, notes, yeargraduated, studentid } = req.body
+        const [rows] = await db.query(`
+            UPDATE otherinformation_tbl SET nstpserialnumber = ?, boardresolution = ?, notes = ?, yeargraduated = ? WHERE otherinformation_tbl.studentid = ?;`, [nstpserialnumber, boardresolution, notes, yeargraduated, studentid])
+        res.json({ message: 'Other Information Record Updated' })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: 'Error Updating Other Information Record: ', error: error.message })
     }
 })
 app.put('/updateSemestralRating', async (req, res) => {
@@ -342,9 +426,9 @@ app.put('/updateSemestralRating', async (req, res) => {
         const { courseno, title, grade, reex, credit, id } = req.body
         console.log(courseno, title, grade, reex, credit, id)
         const [rows] = await db.query(`
-            UPDATE subjectstaken_tbl SET 
-            coursenumber = ?, descriptivetitle = ?, finalgrade = ?, reex = ?, credit = ? 
-            WHERE subjectstaken_tbl.id = ?;`, [courseno, title, grade, reex, credit, id])
+            UPDATE subjectstaken_tbl SET
+        coursenumber = ?, descriptivetitle = ?, finalgrade = ?, reex = ?, credit = ?
+            WHERE subjectstaken_tbl.id = ?; `, [courseno, title, grade, reex, credit, id])
         res.json({ message: 'Record Updated' })
     } catch (error) {
         console.log(error)
@@ -365,5 +449,5 @@ app.delete('/deletePendingRequest', async (req, res) => {
 })
 
 app.listen(process.env.DB_PORT/* 3002 */, () => {
-    console.log(`Server is running on localhost:${process.env.DB_PORT/* 3002 */}`)
+    console.log(`Server is running on localhost:${process.env.DB_PORT/* 3002 */} `)
 })
