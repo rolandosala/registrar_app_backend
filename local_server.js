@@ -280,7 +280,6 @@ app.post("/uploadSemetralRatings", upload.single("csvFile"), (req, res) => {
         const filePath = req.file.path;
         const id = req.body.id;
         const results = [];
-
         fs.createReadStream(filePath)
             .pipe(csv())
             .on('data', (data) => results.push(data))
