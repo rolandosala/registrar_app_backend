@@ -6,12 +6,14 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
+import { chromium } from 'playwright';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 
 const db = mysql.createPool({
@@ -48,7 +50,6 @@ app.get('/fetchTransferedOutBySchool', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 app.get('/fetchTransferedOutByCourse', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -64,7 +65,6 @@ app.get('/fetchTransferedOutByCourse', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 app.get('/fetchWalkinRequestData', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -74,7 +74,6 @@ app.get('/fetchWalkinRequestData', async (req, res) => {
         console.log(error);
     }
 })
-
 app.get('/fetchStudentRecordData', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -88,7 +87,6 @@ app.get('/fetchStudentRecordData', async (req, res) => {
         console.log('Fetching Student Record Error: ', error)
     }
 })
-
 app.get('/fetchComplianceRecordData', async (req, res) => {
     try {
         const [rows] = await db.query(`SELECT * FROM inc_transaction_tbl`);
@@ -97,7 +95,6 @@ app.get('/fetchComplianceRecordData', async (req, res) => {
         console.log(error)
     }
 })
-
 app.get('/fetchShifteeRecordData', async (req, res) => {
     try {
         const [rows] = await db.query(`SELECT * FROM shiftee_tbl`);
@@ -106,7 +103,6 @@ app.get('/fetchShifteeRecordData', async (req, res) => {
         console.log(error)
     }
 })
-
 app.get('/fetchNSTPSerialNumber', async (req, res) => {
     try {
         const [rows] = await db.query(`SELECT * FROM nstp_tbl`)
@@ -115,7 +111,6 @@ app.get('/fetchNSTPSerialNumber', async (req, res) => {
         console.log(error)
     }
 })
-
 app.get('/fetchTransferredOutRecordData', async (req, res) => {
     try {
         const [rows] = await db.query(`SELECT * FROM transferred_out_tbl ORDER BY lastname ASC`)
@@ -124,7 +119,6 @@ app.get('/fetchTransferredOutRecordData', async (req, res) => {
         console.log(error)
     }
 })
-
 app.get(`/fetchStudentDetailedInformation`, async (req, res) => {
     try {
         const { id } = req.query
@@ -140,7 +134,6 @@ app.get(`/fetchStudentDetailedInformation`, async (req, res) => {
         console.log(error);
     }
 })
-
 app.get(`/fetchStudentSemestersEnrolled`, async (req, res) => {
     try {
         const { id } = req.query
@@ -154,7 +147,6 @@ app.get(`/fetchStudentSemestersEnrolled`, async (req, res) => {
         console.log(error)
     }
 })
-
 app.get(`/fetchStudentSemestralRatingRecords`, async (req, res) => {
     try {
         const { id } = req.query
@@ -165,7 +157,6 @@ app.get(`/fetchStudentSemestralRatingRecords`, async (req, res) => {
         console.log(error)
     }
 })
-
 app.get('/fetchCoursesRecord', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -176,7 +167,6 @@ app.get('/fetchCoursesRecord', async (req, res) => {
         res.status(500).json({ message: 'Error Fetching Courses Record', error: error.message })
     }
 })
-
 app.get('/fetchMajorsRecord', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -187,7 +177,6 @@ app.get('/fetchMajorsRecord', async (req, res) => {
         res.status(500).json({ message: 'Error Fetching Courses Record', error: error.message })
     }
 })
-
 function countOccurrences(array, key) {
     const counts = {}
     array.forEach(row => {
@@ -216,7 +205,6 @@ app.get('/fetchRequestReportsByTransaction', async (req, res) => {
         res.status(500).json({ message: 'Error Fetching Request Reports by Transaction', error: error.message })
     }
 })
-
 app.get('/fetchTORTransactions', async (req, res) => {
     try {
         const { id } = req.query
@@ -226,6 +214,46 @@ app.get('/fetchTORTransactions', async (req, res) => {
     } catch (error) {
         console.log(error)
         res.status(500).json({ message: 'Error Fetching Courses Record', error: error.message })
+    }
+})
+app.get('/fetchSemesters', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT semester FROM inc_transaction_tbl GROUP BY semester;`)
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.get('/fetchAcademicYear', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT academic_year FROM inc_transaction_tbl GROUP BY academic_year;`)
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.get('/fetchCourseandDescriptiveTitle', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT course_no, descriptive_title FROM inc_transaction_tbl GROUP BY course_no;`)
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.get('/fetchInstructors', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT instructor FROM inc_transaction_tbl GROUP BY instructor;`)
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.get('/fetchTransferredOutSchoolName', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT schoolname, schooladdress FROM transferred_out_tbl GROUP BY schoolname;`)
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
     }
 })
 
@@ -300,8 +328,62 @@ app.post("/uploadSemetralRatings", upload.single("csvFile"), (req, res) => {
             });
     } catch (error) {
         console.error('Error uploading CSV:', error);
-        res.status(500).send('Error uploading CSV');}
+        res.status(500).send('Error uploading CSV');
+    }
 });
+app.post('/addNewCompliance', async (req, res) => {
+    try {
+        const { date, student_id, student_name, course_no, descriptive_title, semester, date_complied, rating, instructor, academic_year, ornumber, datepaid } = req.body
+        if (!date || !student_id || !student_name || !course_no || !descriptive_title || !semester || !date_complied || !rating || !instructor || !academic_year || !ornumber || !datepaid) {
+            return res.json({ message: 'Empty Field' })
+        }
+        const [rows] = await db.query(`
+            INSERT INTO inc_transaction_tbl 
+            (date, student_id, student_name, course_no, descriptive_title, semester, date_complied, rating, instructor, academic_year, ornumber, datepaid) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [date, student_id, student_name, course_no, descriptive_title, semester, date_complied, rating, instructor, academic_year, ornumber, datepaid])
+        res.json({ message: 'Compliance Saved' })
+
+
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.post('/addNewShiftee', async (req, res) => {
+    try {
+        const { studentid, lastname, firstname, middlename, semester, academicyear, currentcourse, currentmajor, newcourse, newmajor, dateadded } = req.body
+        const [rows] = await db.query(`
+            INSERT INTO shiftee_tbl 
+            (studentid, lastname, firstname, middlename, semester, academicyear, currentcourse, currentmajor, newcourse, newmajor, dateadded) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, [studentid, lastname, firstname, middlename, semester, academicyear, currentcourse, currentmajor, newcourse, newmajor, dateadded])
+        res.json({ message: 'Shiftee Saved' })
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.post('/generatePDF', async (req, res) => {
+    try {
+        const { htmlContent } = req.body;
+        const browser = await chromium.launch();
+        const page = await browser.newPage();
+        // Set HTML content
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+        });
+        await browser.close();
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename=generated.pdf',
+        });
+
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.log(error)
+    }
+})
 
 // PUT OR UPDATE API FUNCTIONS
 app.put('/updateRequestToPaid', async (req, res) => {
