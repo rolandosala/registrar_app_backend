@@ -7,6 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
 
 dotenv.config();
 
@@ -382,6 +383,32 @@ app.post('/generatePDF', async (req, res) => {
         res.send(pdfBuffer);
     } catch (error) {
         console.log(error)
+    }
+})
+app.post('/generatePDFv2', async (req, res) => {
+    const { html } = req.body;
+
+    try {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+
+        // Set HTML content from frontend
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+
+        // Generate PDF
+        const pdfBuffer = await page.pdf({ format: 'A4' });
+
+        await browser.close();
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="document.pdf"',
+        });
+
+        res.send(pdfBuffer);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Failed to generate PDF');
     }
 })
 
