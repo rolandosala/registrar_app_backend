@@ -257,6 +257,18 @@ app.get('/fetchTransferredOutSchoolName', async (req, res) => {
         console.log(error)
     }
 })
+app.get('/fetchStudentNameTransferredOut', async (req, res) => {
+    try {
+        const { schoolname } = req.query
+        const [rows] = await db.query(`
+            SELECT lastname, firstname, middlename, course, granted_date
+            FROM transferred_out_tbl 
+            WHERE schoolname = ?;`, [schoolname])
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
 
 // POST OR CREATE API FUNCTIONS
 app.post('/createNewRequest', async (req, res) => {
@@ -386,17 +398,17 @@ app.post('/generatePDF', async (req, res) => {
     }
 })
 app.post('/generatePDFv2', async (req, res) => {
-    const { html } = req.body;
+    const { htmlContent } = req.body;
 
     try {
         const browser = await puppeteer.launch();
         const page = await browser.newPage();
 
         // Set HTML content from frontend
-        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
 
         // Generate PDF
-        const pdfBuffer = await page.pdf({ format: 'A4' });
+        const pdfBuffer = await page.pdf({ format: 'A4', margin: '2.54cm' });
 
         await browser.close();
 
