@@ -356,8 +356,17 @@ app.post('/addNewCompliance', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
             [date, student_id, student_name, course_no, descriptive_title, semester, date_complied, rating, instructor, academic_year, ornumber, datepaid])
         res.json({ message: 'Compliance Saved' })
-
-
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.post('/addNewTransferOut', async (req, res) => {
+    try {
+        const { studentid, firstname, lastname, middlename, gender, course, major, grad_status, yeargraduated, lastsemesterattended, academicyear, or_number, or_date, docstamp, docstamp_date, informative_date, transfer_status } = req.body
+        const [rows] = await db.query(`
+           INSERT INTO transferred_out_tbl (studentid, firstname, lastname, middlename, gender, course, major, grad_status, yeargraduated, lastsemesterattended, academicyear, or_number, or_date, docstamp, docstamp_date, informative_date, transfer_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [studentid, firstname, lastname, middlename, gender, course, major, grad_status, yeargraduated, lastsemesterattended, academicyear, or_number, or_date, docstamp, docstamp_date, informative_date, transfer_status])
+        res.json({ message: 'Transfer Out Saved' })
     } catch (error) {
         console.log(error)
     }
@@ -553,6 +562,16 @@ app.put('/updateSemestralRating', async (req, res) => {
     } catch (error) {
         console.log(error)
         res.status(500).json({ message: 'Error Updating Admission Record: ', error: error.message })
+    }
+})
+app.put('/updateTransferOutToGranted', async (req, res) => {
+    try {
+        const { granted_date, request_type, schoolname, schooladdress, transfer_status, studentid } = req.body
+        const [rows] = await db.query(`
+            UPDATE transferred_out_tbl SET granted_date = ?, request_type = ?, schoolname = ?, schooladdress = ?, transfer_status = ? WHERE transferred_out_tbl.studentid = ?;`, [granted_date, request_type, schoolname, schooladdress, transfer_status, studentid])
+        res.json({ message: 'Data Updated' })
+    } catch (error) {
+        console.log(error)
     }
 })
 
