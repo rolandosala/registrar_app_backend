@@ -6,8 +6,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
-import { chromium } from 'playwright';
-import puppeteer from 'puppeteer';
+import wkhtmlToPdf from 'wkhtmltopdf';
+import bodyParser from 'body-parser';
 
 dotenv.config();
 
@@ -15,6 +15,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 
 const db = mysql.createPool({
@@ -249,6 +251,14 @@ app.get('/fetchInstructors', async (req, res) => {
         console.log(error)
     }
 })
+app.get('/fetchTransferredInSchoolName', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT schoolname, schooladdress FROM transferred_in_tbl GROUP BY schoolname;`)
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
 app.get('/fetchTransferredOutSchoolName', async (req, res) => {
     try {
         const [rows] = await db.query(`SELECT schoolname, schooladdress FROM transferred_out_tbl GROUP BY schoolname;`)
@@ -264,6 +274,14 @@ app.get('/fetchStudentNameTransferredOut', async (req, res) => {
             SELECT lastname, firstname, middlename, course, granted_date
             FROM transferred_out_tbl 
             WHERE schoolname = ?;`, [schoolname])
+        res.json(rows)
+    } catch (error) {
+        console.log(error)
+    }
+})
+app.get('/fetchTransferredInList', async (req, res) => {
+    try {
+        const [rows] = await db.query(`SELECT * FROM transferred_in_tbl`)
         res.json(rows)
     } catch (error) {
         console.log(error)
@@ -360,6 +378,18 @@ app.post('/addNewCompliance', async (req, res) => {
         console.log(error)
     }
 })
+app.post('/addNewTransferIn', async (req, res) => {
+    try {
+        const { studentid, date, lastname, firstname, middlename, gender, course, major, schoolname, schooladdress } = req.body
+        const [rows] = await db.query(`
+          INSERT INTO transferred_in_tbl (studentid, date, lastname, firstname, middlename, gender, course, major, schoolname, schooladdress) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?);`,
+            [studentid, date, lastname, firstname, middlename, gender, course, major, schoolname, schooladdress])
+        res.json({ message: 'Transfer In Saved' })
+    } catch (error) {
+        console.log(error)
+    }
+})
 app.post('/addNewTransferOut', async (req, res) => {
     try {
         const { studentid, firstname, lastname, middlename, gender, course, major, grad_status, yeargraduated, lastsemesterattended, academicyear, or_number, or_date, docstamp, docstamp_date, informative_date, transfer_status } = req.body
@@ -383,54 +413,18 @@ app.post('/addNewShiftee', async (req, res) => {
         console.log(error)
     }
 })
-app.post('/generatePDF', async (req, res) => {
-    try {
-        const { htmlContent } = req.body;
-        const browser = await chromium.launch();
-        const page = await browser.newPage();
-        // Set HTML content
-        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-        // Generate PDF
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-        });
-        await browser.close();
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename=generated.pdf',
-        });
 
-        res.send(pdfBuffer);
-    } catch (error) {
-        console.log(error)
-    }
-})
-app.post('/generatePDFv2', async (req, res) => {
+app.post('/generatePDFv3', async (req, res) => {
     const { htmlContent } = req.body;
 
-    try {
-        const browser = await puppeteer.launch();
-        const page = await browser.newPage();
-
-        // Set HTML content from frontend
-        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-
-        // Generate PDF
-        const pdfBuffer = await page.pdf({ format: 'A4', margin: '2.54cm' });
-
-        await browser.close();
-
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename="document.pdf"',
-        });
-
-        res.send(pdfBuffer);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Failed to generate PDF');
+    if (!htmlContent) {
+        return res.status(400).json({ error: "HTML content is required" });
     }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=generated.pdf");
+
+    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true  }).pipe(res);
 })
 
 // PUT OR UPDATE API FUNCTIONS
