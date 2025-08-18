@@ -414,17 +414,23 @@ app.post('/addNewShiftee', async (req, res) => {
     }
 })
 
-app.post('/generatePDFv3', async (req, res) => {
+app.post('/generateCTC', async (req, res) => {
     const { htmlContent } = req.body;
-
     if (!htmlContent) {
         return res.status(400).json({ error: "HTML content is required" });
     }
-
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=generated.pdf");
-
-    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true  }).pipe(res);
+    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true, orientation: 'Portrait'  }).pipe(res);
+})
+app.post('/generateGTC', async (req, res) => {
+    const { htmlContent } = req.body;
+    if (!htmlContent) {
+        return res.status(400).json({ error: "HTML content is required" });
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=generated.pdf");
+    wkhtmlToPdf(htmlContent, { pageSize: "Legal", enableLocalFileAccess: true, orientation: 'Landscape'  }).pipe(res);
 })
 
 // PUT OR UPDATE API FUNCTIONS
