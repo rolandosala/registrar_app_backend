@@ -430,7 +430,7 @@ app.post('/generateGTC', async (req, res) => {
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=generated.pdf");
-    wkhtmlToPdf(htmlContent, { pageSize: "Legal", enableLocalFileAccess: true, orientation: 'Landscape'  }).pipe(res);
+    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true, orientation: 'Landscape'  }).pipe(res);
 })
 
 // PUT OR UPDATE API FUNCTIONS
