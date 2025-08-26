@@ -588,6 +588,6 @@ app.delete('/deletePendingRequest', async (req, res) => {
     }
 })
 
-app.listen(process.env.DB_PORT/* 3002 */, () => {
-    console.log(`Server is running on localhost:${process.env.DB_PORT/* 3002 */} `)
+app.listen(process.env.MYSQL_ADDON_PORT/* 3002 */, () => {
+    console.log(`Server is running on localhost:${process.env.MYSQL_ADDON_PORT/* 3002 */} `)
 })
