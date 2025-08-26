@@ -20,12 +20,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 
 const db = mysql.createPool({
-    host: process.env.DB_HOST /* 'localhost' */,
-    user: process.env.DB_USERNAME /* 'root' */,
-    password: process.env.DB_PASSWORD /* '' */,
-    database: process.env.DB_NAME/* 'studentrecord_db' */,
+    host: process.env.MYSQL_ADDON_HOST,
+    user: process.env.MYSQL_ADDON_USER,
+    password: process.env.MYSQL_ADDON_PASSWORD,
+    database: process.env.MYSQL_ADDON_DB,
+    port: process.env.MYSQL_ADDON_PORT,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 5,
     queueLimit: 0
 })
 const storage = multer.diskStorage({
@@ -421,7 +422,7 @@ app.post('/generateCTC', async (req, res) => {
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=generated.pdf");
-    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true, orientation: 'Portrait'  }).pipe(res);
+    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true, orientation: 'Portrait' }).pipe(res);
 })
 app.post('/generateGTC', async (req, res) => {
     const { htmlContent } = req.body;
@@ -430,7 +431,7 @@ app.post('/generateGTC', async (req, res) => {
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=generated.pdf");
-    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true, orientation: 'Landscape'  }).pipe(res);
+    wkhtmlToPdf(htmlContent, { pageSize: "A4", enableLocalFileAccess: true, orientation: 'Landscape' }).pipe(res);
 })
 
 // PUT OR UPDATE API FUNCTIONS
