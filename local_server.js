@@ -30,7 +30,7 @@ const db = mysql.createPool({
     database: process.env.MYSQL_ADDON_DB,
     port: process.env.MYSQL_ADDON_PORT,
     waitForConnections: true,
-    connectionLimit: 5,
+    connectionLimit: 2,
     queueLimit: 0
 })
 const storage = multer.diskStorage({
